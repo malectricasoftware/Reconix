@@ -2,6 +2,7 @@
 Reconix is a A Python-based tool that allows you to scrape Google search results for specific dorks. You can either provide a single dork or a file containing a list of dorks to search.
 
 python Reconix.py -D "<dork>"
+
 python Reconix.py -F <dorks_file>
 
 
