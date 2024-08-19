@@ -1,11 +1,12 @@
+import argparse
 from selenium import webdriver
 from selenium.webdriver.firefox.options import Options
 from selenium.webdriver.common.by import By
 from selenium.common.exceptions import NoSuchElementException
 import time
+import os
 
 # File paths
-dorks_file = "dorks.txt"
 output_file = "scraped.txt"
 
 # Setup Firefox with Geckodriver
@@ -48,7 +49,7 @@ def scrape_dork(dork):
     try:
         print(f"Processing dork: {dork.strip()}")  # Debugging line
         # Construct the Google search URL
-        search_url = f"https://www.google.com/search?q=inurl:\"{dork.strip()}\""
+        search_url = f"https://www.google.com/search?q={dork.strip()}"
 
         # Open the Google search URL
         driver.get(search_url)
@@ -91,16 +92,32 @@ def scrape_dork(dork):
     except Exception as e:
         print(f"An error occurred for dork: {dork} -> {e}")
 
-# Read dorks from the file
-with open(dorks_file, 'r') as file:
-    dorks = file.readlines()
+# Main function
+def main():
+    parser = argparse.ArgumentParser(description="Google Dork Scraper")
+    parser.add_argument("-D", "--dork", help="Single Google dork to use", required=False)
+    parser.add_argument("-F", "--file", help="File containing a list of Google dorks", required=False)
 
-# Iterate over all dorks and scrape Google search results
-for dork in dorks:
-    scrape_dork(dork)
-    time.sleep(10)  # Sleep to prevent being flagged
+    args = parser.parse_args()
 
-# Close the browser
-driver.quit()
+    # Check if the user provided a dork or a file
+    if args.dork:
+        scrape_dork(args.dork)
+    elif args.file:
+        if os.path.isfile(args.file):
+            with open(args.file, 'r') as file:
+                dorks = file.readlines()
+                for dork in dorks:
+                    scrape_dork(dork)
+                    time.sleep(10)  # Sleep to prevent being flagged
+        else:
+            print(f"File {args.file} does not exist.")
+    else:
+        print("Please provide a dork with -D or a file of dorks with -F.")
 
-print("Scraping completed. Results are saved in scraped.txt")
+    # Close the browser
+    driver.quit()
+    print("Scraping completed. Results are saved in scraped.txt")
+
+if __name__ == "__main__":
+    main()
