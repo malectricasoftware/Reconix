@@ -45,7 +45,7 @@ def wait_for_user_acceptance():
             continue
 
 # Function to scrape Google search results for a given dork
-def scrape_dork(dork):
+def scrape_dork(dork, max_pages):
     try:
         print(f"Processing dork: {dork.strip()}")  # Debugging line
         # Construct the Google search URL
@@ -71,23 +71,42 @@ def scrape_dork(dork):
         # Wait for the user to accept any prompts
         wait_for_user_acceptance()
 
-        # Manually iterate over search result links
-        links = driver.find_elements(By.XPATH, "//a[@href]")
-        print(f"Found {len(links)} links.")  # Debugging line
+        page_count = 0
+        while True:
+            # Manually iterate over search result links
+            links = driver.find_elements(By.XPATH, "//a[@href]")
+            print(f"Found {len(links)} links on page {page_count + 1}.")  # Debugging line
 
-        with open(output_file, 'a') as f:
-            for link in links:
-                try:
-                    url = link.get_attribute("href")
-                    if is_valid_url(url):
-                        # Capture URLs that do not contain 'google'
-                        print(f"Saving URL: {url}")  # Output to console
-                        f.write(url + "\n")  # Write to file
-                    else:
-                        print(f"Skipping URL: {url}")  # Skip Google-related URLs
-                except NoSuchElementException:
-                    print("Element not found. Skipping...")
-                    continue
+            with open(output_file, 'a') as f:
+                for link in links:
+                    try:
+                        url = link.get_attribute("href")
+                        if is_valid_url(url):
+                            # Capture URLs that do not contain 'google'
+                            print(f"Saving URL: {url}")  # Output to console
+                            f.write(url + "\n")  # Write to file
+                        else:
+                            print(f"Skipping URL: {url}")  # Skip Google-related URLs
+                    except NoSuchElementException:
+                        print("Element not found. Skipping...")
+                        continue
+
+            # Increment page counter
+            page_count += 1
+
+            # Check if we've reached the max number of pages
+            if page_count >= max_pages:
+                print(f"Reached the maximum number of pages ({max_pages}) for this dork.")
+                break
+
+            # Check if there's a "Next" button to go to the next page
+            try:
+                next_button = driver.find_element(By.XPATH, "//a[@id='pnnext']")
+                next_button.click()
+                time.sleep(3)  # Wait for the next page to load
+            except NoSuchElementException:
+                print("No more pages left.")
+                break
 
     except Exception as e:
         print(f"An error occurred for dork: {dork} -> {e}")
@@ -97,18 +116,22 @@ def main():
     parser = argparse.ArgumentParser(description="Google Dork Scraper")
     parser.add_argument("-D", "--dork", help="Single Google dork to use", required=False)
     parser.add_argument("-F", "--file", help="File containing a list of Google dorks", required=False)
+    parser.add_argument("-P", "--pages", help="Maximum number of pages to scrape per dork (default: 5, max: 30)", type=int, default=5)
 
     args = parser.parse_args()
 
+    # Validate the number of pages
+    max_pages = min(max(1, args.pages), 30)
+
     # Check if the user provided a dork or a file
     if args.dork:
-        scrape_dork(args.dork)
+        scrape_dork(args.dork, max_pages)
     elif args.file:
         if os.path.isfile(args.file):
             with open(args.file, 'r') as file:
                 dorks = file.readlines()
                 for dork in dorks:
-                    scrape_dork(dork)
+                    scrape_dork(dork, max_pages)
                     time.sleep(10)  # Sleep to prevent being flagged
         else:
             print(f"File {args.file} does not exist.")
